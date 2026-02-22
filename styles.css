@@ -86,7 +86,7 @@ li{margin:4px 0}
   z-index:5;
 }
 .hint-btn:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.04)}
-.hint-btn.pop-in{animation:hintPop .45s cubic-bezier(.2,.9,.2,1)}
+.hint-btn.pop-in{animation:hintIdleBounce 1.6s ease-in-out infinite}
 .hint-btn:active{transform:translateY(0) scale(.98)}
 @media (max-width: 920px){ .hint-btn{ right:8px; top:8px; width:50px; height:50px; font-size:30px; } }
 
@@ -115,10 +115,10 @@ li{margin:4px 0}
   .hint-btn::after{display:none}
 }
 
-.cell.hint-x-right{animation:hintXRight .65s ease-in-out infinite}
-.cell.hint-x-left{animation:hintXLeft .65s ease-in-out infinite}
-.cell.hint-y-down{animation:hintYDown .65s ease-in-out infinite}
-.cell.hint-y-up{animation:hintYUp .65s ease-in-out infinite}
+.cell.hint-x-right{animation:hintXRight 1.2s ease-in-out infinite}
+.cell.hint-x-left{animation:hintXLeft 1.2s ease-in-out infinite}
+.cell.hint-y-down{animation:hintYDown 1.2s ease-in-out infinite}
+.cell.hint-y-up{animation:hintYUp 1.2s ease-in-out infinite}
 @keyframes hintXRight{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
 @keyframes hintXLeft{0%,100%{transform:translateX(0)}50%{transform:translateX(-6px)}}
 @keyframes hintYDown{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
@@ -135,11 +135,13 @@ li{margin:4px 0}
   opacity:0;
   filter:blur(1px);
 }
-.cell.hint-trail-right::before{background:linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailRight .65s ease-in-out infinite}
-.cell.hint-trail-left::before{background:linear-gradient(270deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailLeft .65s ease-in-out infinite}
-.cell.hint-trail-down::before{background:linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailDown .65s ease-in-out infinite}
-.cell.hint-trail-up::before{background:linear-gradient(0deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailUp .65s ease-in-out infinite}
+.cell.hint-trail-right::before{background:linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailRight 1.2s ease-in-out infinite}
+.cell.hint-trail-left::before{background:linear-gradient(270deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailLeft 1.2s ease-in-out infinite}
+.cell.hint-trail-down::before{background:linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailDown 1.2s ease-in-out infinite}
+.cell.hint-trail-up::before{background:linear-gradient(0deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailUp 1.2s ease-in-out infinite}
 @keyframes trailRight{0%,100%{opacity:0;transform:translateX(0)}50%{opacity:.85;transform:translateX(6px)}}
 @keyframes trailLeft{0%,100%{opacity:0;transform:translateX(0)}50%{opacity:.85;transform:translateX(-6px)}}
 @keyframes trailDown{0%,100%{opacity:0;transform:translateY(0)}50%{opacity:.85;transform:translateY(6px)}}
 @keyframes trailUp{0%,100%{opacity:0;transform:translateY(0)}50%{opacity:.85;transform:translateY(-6px)}}
+
+@keyframes hintIdleBounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.04)}}

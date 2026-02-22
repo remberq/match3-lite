@@ -3,7 +3,7 @@ const MAX_HINTS = 3;
 let board = [], score = 0, moves = MOVES_MAX, selected = null, busy = false, currentPlayer = '';
 let touchStart = null, pointerStart = null, dropMap = new Map(), shakePower = 0;
 let currentSeriesPoints = 0, bestCombo = 0;
-let hintTimer = null, hintedCellIndex = null, hintedTargetIndex = null, hintAxis = null, hintDir = null, hintsLeft = MAX_HINTS, hintPulseTimer = null;
+let hintTimer = null, hintedCellIndex = null, hintedTargetIndex = null, hintAxis = null, hintDir = null, hintsLeft = MAX_HINTS;
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -168,8 +168,7 @@ function ensurePlayableBoard(){
 }
 
 function clearHintVisual(){
-  if(hintPulseTimer){ clearInterval(hintPulseTimer); hintPulseTimer=null; }
-  if(hintedCellIndex!==null){
+    if(hintedCellIndex!==null){
     const el = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
     el?.classList.remove('shake','hint-x-right','hint-x-left','hint-y-up','hint-y-down','hint-trail','hint-trail-right','hint-trail-left','hint-trail-up','hint-trail-down');
   }
@@ -208,22 +207,17 @@ function onHintClick(){
   hintAxis = (sr===tr) ? 'x' : 'y';
   hintDir = hintAxis==='x' ? (tc>sc ? 'right' : 'left') : (tr>sr ? 'down' : 'up');
 
-  const pulse = () => {
-    if(hintedCellIndex===null) return;
-    const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
-    if(!target) return;
-    target.classList.remove('hint-x-right','hint-x-left','hint-y-up','hint-y-down','hint-trail','hint-trail-right','hint-trail-left','hint-trail-up','hint-trail-down');
-    void target.offsetWidth;
-    if(hintAxis==='x') {
-      target.classList.add(hintDir==='right' ? 'hint-x-right' : 'hint-x-left');
-      target.classList.add('hint-trail', hintDir==='right' ? 'hint-trail-right' : 'hint-trail-left');
-    } else {
-      target.classList.add(hintDir==='down' ? 'hint-y-down' : 'hint-y-up');
-      target.classList.add('hint-trail', hintDir==='down' ? 'hint-trail-down' : 'hint-trail-up');
-    }
-  };
-  pulse();
-  hintPulseTimer = setInterval(pulse, 1000);
+  const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
+  if(!target) return;
+  target.classList.remove('hint-x-right','hint-x-left','hint-y-up','hint-y-down','hint-trail','hint-trail-right','hint-trail-left','hint-trail-up','hint-trail-down');
+  void target.offsetWidth;
+  if(hintAxis==='x') {
+    target.classList.add(hintDir==='right' ? 'hint-x-right' : 'hint-x-left');
+    target.classList.add('hint-trail', hintDir==='right' ? 'hint-trail-right' : 'hint-trail-left');
+  } else {
+    target.classList.add(hintDir==='down' ? 'hint-y-down' : 'hint-y-up');
+    target.classList.add('hint-trail', hintDir==='down' ? 'hint-trail-down' : 'hint-trail-up');
+  }
 }
 
 function resetHintCycle(){
