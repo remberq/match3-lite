@@ -79,8 +79,8 @@ function shuffleBoard(){ if(busy) return; score=0; selected=null; currentSeriesP
 
 function render(){ scoreEl.textContent=score; movesEl.textContent=moves; boardEl.innerHTML=''; board.forEach((color,i)=>{ const d=document.createElement('button'); d.className='cell'; d.dataset.index=String(i); if(color===null)d.classList.add('empty'); else d.classList.add(`c${color}`); if(selected===i)d.classList.add('selected'); const dist=dropMap.get(i); if(dist&&color!==null){ d.classList.add('drop'); d.style.setProperty('--drop',String(dist)); d.style.animationDelay=`${Math.min(220,dist*22)}ms`; } d.addEventListener('click',()=>onCell(i)); boardEl.appendChild(d); }); renderLeaderboard(); }
 
-async function onCell(i){ if(busy||moves<=0)return; userInteracted(); if(selected===null){selected=i; return render();} if(selected===i){selected=null; return render();} if(!adjacent(selected,i)){selected=i; return render();} await attemptSwap(selected,i); selected=null; render(); }
-async function attemptSwap(a,b){ busy=true; currentSeriesPoints=0; playSwapSfx(); await animateSwap(a,b); swap(a,b); render(); let matches=findMatches(); if(!matches.size){ await animateInvalidSwap(a,b); swap(a,b); busy=false; render(); resetHintCycle(); return; } moves--; clearHintVisual(); await resolveMatches(matches); busy=false; ensurePlayableBoard(); render(); resetHintCycle(); }
+async function onCell(i){ if(busy||moves<=0)return; if(selected===null){selected=i; return render();} if(selected===i){selected=null; return render();} if(!adjacent(selected,i)){selected=i; return render();} await attemptSwap(selected,i); selected=null; render(); }
+async function attemptSwap(a,b){ busy=true; currentSeriesPoints=0; playSwapSfx(); await animateSwap(a,b); swap(a,b); render(); let matches=findMatches(); if(!matches.size){ await animateInvalidSwap(a,b); swap(a,b); busy=false; render(); return; } moves--; clearHintVisual(); await resolveMatches(matches); busy=false; ensurePlayableBoard(); render(); resetHintCycle(); }
 const swap=(a,b)=>{[board[a],board[b]]=[board[b],board[a]]};
 
 function findMatches(){ const set=new Set();
@@ -117,9 +117,9 @@ async function animateVanish(matchSet){ const cells=boardEl.querySelectorAll('.c
 function finishGame(){ const name=(currentPlayer||'Anonymous').trim().slice(0,20); const key='match3_leaderboard_v1'; const list=JSON.parse(localStorage.getItem(key)||'[]'); list.push({name,score,date:new Date().toISOString()}); list.sort((a,b)=>b.score-a.score); localStorage.setItem(key,JSON.stringify(list.slice(0,10))); alert(`Game over, ${name}! Score: ${score}`); }
 function renderLeaderboard(){ const list=JSON.parse(localStorage.getItem('match3_leaderboard_v1')||'[]'); leaderboardEl.innerHTML=list.map(x=>`<li><strong>${escapeHtml(x.name)}</strong> — ${x.score}</li>`).join('')||'<li>No scores yet</li>'; }
 
-function onTouchStart(e){ if(busy||moves<=0)return; userInteracted(); const t=e.changedTouches[0]; const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.cell'); if(!el)return; touchStart={x:t.clientX,y:t.clientY,index:Number(el.dataset.index)}; }
+function onTouchStart(e){ if(busy||moves<=0)return; const t=e.changedTouches[0]; const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.cell'); if(!el)return; touchStart={x:t.clientX,y:t.clientY,index:Number(el.dataset.index)}; }
 async function onTouchEnd(e){ if(!touchStart||busy||moves<=0)return; const t=e.changedTouches[0]; const move=directionTarget(touchStart.index,t.clientX-touchStart.x,t.clientY-touchStart.y); touchStart=null; if(!move)return; await attemptSwap(move[0],move[1]); render(); }
-function onMouseDown(e){ if(busy||moves<=0)return; userInteracted(); const el=e.target.closest('.cell'); if(!el)return; pointerStart={x:e.clientX,y:e.clientY,index:Number(el.dataset.index)}; }
+function onMouseDown(e){ if(busy||moves<=0)return; const el=e.target.closest('.cell'); if(!el)return; pointerStart={x:e.clientX,y:e.clientY,index:Number(el.dataset.index)}; }
 async function onMouseUp(e){ if(!pointerStart||busy||moves<=0)return; const move=directionTarget(pointerStart.index,e.clientX-pointerStart.x,e.clientY-pointerStart.y); pointerStart=null; if(!move)return; await attemptSwap(move[0],move[1]); render(); }
 
 function directionTarget(startIndex,dx,dy){ if(Math.abs(dx)<10&&Math.abs(dy)<10)return null; const [r,c]=rc(startIndex); let tr=r,tc=c; if(Math.abs(dx)>Math.abs(dy)) tc += dx>0?1:-1; else tr += dy>0?1:-1; if(tr<0||tc<0||tr>=SIZE||tc>=SIZE)return null; return [startIndex,idx(tr,tc)]; }
@@ -226,9 +226,5 @@ function resetHintCycle(){
 }
 
 function userInteracted(){
-  hintBtnEl.classList.add('hidden');
-  // keep active hint pulse until player makes a valid match
-  if(hintedCellIndex===null){
-    resetHintCycle();
-  }
+  // intentionally no-op: timer resets only after valid matched move
 }
