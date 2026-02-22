@@ -8,6 +8,7 @@ let selected = null;
 let busy = false;
 let currentPlayer = '';
 let touchStart = null;
+let pointerStart = null;
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -23,6 +24,8 @@ document.getElementById('startBtn').addEventListener('click', startGameFlow);
 
 boardEl.addEventListener('touchstart', onTouchStart, {passive:true});
 boardEl.addEventListener('touchend', onTouchEnd, {passive:true});
+boardEl.addEventListener('mousedown', onMouseDown);
+window.addEventListener('mouseup', onMouseUp);
 
 function startGameFlow(){
   const name = (nameEl.value || '').trim();
@@ -45,7 +48,8 @@ function newGame(name) {
   board = Array.from({length: SIZE*SIZE}, randColor);
   while (findMatches().size) {
     clearMatches(findMatches());
-    applyGravityAndFill(false);
+    applyGravityNoFill();
+    fillInstant();
   }
   render();
 }
@@ -83,7 +87,7 @@ async function attemptSwap(a,b){
   render();
   let matches = findMatches();
   if (!matches.size){
-    await animateSwap(a,b);
+    await animateInvalidSwap(a,b);
     swap(a,b);
     busy = false;
     render();
@@ -127,15 +131,19 @@ function clearMatches(set){
   set.forEach(i=> board[i] = null);
 }
 
-function applyGravityAndFill(fill=true){
+function applyGravityNoFill(){
   for (let c=0;c<SIZE;c++){
     let write = SIZE-1;
     for (let r=SIZE-1;r>=0;r--){
       const v = board[idx(r,c)];
-      if (v!==null){ board[idx(write,c)] = v; write--; }
+      if (v!==null){ board[idx(write,c)] = v; if (write!==r) board[idx(r,c)] = null; write--; }
     }
-    for (let r=write;r>=0;r--) board[idx(r,c)] = fill ? randColor() : null;
+    for (let r=write;r>=0;r--) board[idx(r,c)] = null;
   }
+}
+
+function fillInstant(){
+  for (let i=0;i<board.length;i++) if (board[i]===null) board[i]=randColor();
 }
 
 async function resolveMatches(initial){
@@ -143,14 +151,41 @@ async function resolveMatches(initial){
   while (m.size){
     await animateVanish(m);
     clearMatches(m);
-    render(); // show empty gaps first
+    render(); // empty first
     await wait(140);
-    applyGravityAndFill(true);
-    render(); // then show fall result
-    await wait(170);
+
+    applyGravityNoFill();
+    render(); // dropped old gems
+    await wait(120);
+
+    await fillWithCascadeAnimation(); // new gems fall one by one
     m = findMatches();
   }
   if (moves<=0) finishGame();
+}
+
+async function fillWithCascadeAnimation(){
+  const toFillByCol = Array.from({length: SIZE}, ()=>[]);
+  for (let c=0;c<SIZE;c++){
+    for (let r=0;r<SIZE;r++){
+      const i = idx(r,c);
+      if (board[i]===null) toFillByCol[c].push(i);
+    }
+  }
+
+  let maxLen = 0;
+  for (let c=0;c<SIZE;c++) maxLen = Math.max(maxLen, toFillByCol[c].length);
+
+  for (let step=maxLen-1; step>=0; step--){
+    let changed = false;
+    for (let c=0;c<SIZE;c++){
+      const col = toFillByCol[c];
+      const pos = col[col.length-1-step];
+      if (pos!==undefined){ board[pos]=randColor(); changed = true; }
+    }
+    if (changed){ render(); await wait(55); }
+  }
+  await wait(60);
 }
 
 async function animateSwap(a,b){
@@ -168,10 +203,22 @@ async function animateSwap(a,b){
   cb.style.transform = '';
 }
 
+async function animateInvalidSwap(a,b){
+  const cells = boardEl.querySelectorAll('.cell');
+  const ca = cells[a], cb = cells[b];
+  if (!ca || !cb) return;
+  ca.classList.add('shake');
+  cb.classList.add('shake');
+  await wait(220);
+  ca.classList.remove('shake');
+  cb.classList.remove('shake');
+  await animateSwap(a,b); // animate return
+}
+
 async function animateVanish(matchSet){
   const cells = boardEl.querySelectorAll('.cell');
   matchSet.forEach(i => cells[i]?.classList.add('vanish'));
-  await wait(220);
+  await wait(240);
 }
 
 function finishGame(){
@@ -200,17 +247,37 @@ function onTouchStart(e){
 async function onTouchEnd(e){
   if (!touchStart || busy || moves<=0) return;
   const t = e.changedTouches[0];
-  const dx = t.clientX - touchStart.x;
-  const dy = t.clientY - touchStart.y;
-  if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { touchStart=null; return; }
-  const [r,c] = rc(touchStart.index);
+  const from = directionTarget(touchStart.index, t.clientX-touchStart.x, t.clientY-touchStart.y);
+  touchStart = null;
+  if (!from) return;
+  await attemptSwap(from[0], from[1]);
+  render();
+}
+
+function onMouseDown(e){
+  if (busy || moves<=0) return;
+  const el = e.target.closest('.cell');
+  if (!el) return;
+  pointerStart = { x:e.clientX, y:e.clientY, index:Number(el.dataset.index) };
+}
+
+async function onMouseUp(e){
+  if (!pointerStart || busy || moves<=0) return;
+  const move = directionTarget(pointerStart.index, e.clientX-pointerStart.x, e.clientY-pointerStart.y);
+  pointerStart = null;
+  if (!move) return;
+  await attemptSwap(move[0], move[1]);
+  render();
+}
+
+function directionTarget(startIndex, dx, dy){
+  if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return null;
+  const [r,c] = rc(startIndex);
   let tr=r, tc=c;
   if (Math.abs(dx) > Math.abs(dy)) tc += dx>0 ? 1 : -1;
   else tr += dy>0 ? 1 : -1;
-  touchStart = null;
-  if (tr<0||tc<0||tr>=SIZE||tc>=SIZE) return;
-  await attemptSwap(idx(r,c), idx(tr,tc));
-  render();
+  if (tr<0||tc<0||tr>=SIZE||tc>=SIZE) return null;
+  return [startIndex, idx(tr,tc)];
 }
 
 function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
