@@ -77,7 +77,7 @@ li{margin:4px 0}
 
 .hint-btn{
   position:absolute; right:-66px; top:20px;
-  width:58px; height:58px; border-radius:16px;
+  width:58px; height:58px; border-radius:999px;
   font-size:34px; font-weight:900; line-height:1;
   background:linear-gradient(180deg,#fde68a,#f59e0b);
   color:#111827; border:2px solid #fef3c7;
@@ -86,6 +86,7 @@ li{margin:4px 0}
   z-index:5;
 }
 .hint-btn:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.04)}
+.hint-btn.pop-in{animation:hintPop .45s cubic-bezier(.2,.9,.2,1)}
 .hint-btn:active{transform:translateY(0) scale(.98)}
 @media (max-width: 920px){ .hint-btn{ right:8px; top:8px; width:50px; height:50px; font-size:30px; } }
 
@@ -114,7 +115,13 @@ li{margin:4px 0}
   .hint-btn::after{display:none}
 }
 
-.cell.hint-x{animation:hintX .7s ease-in-out infinite}
-.cell.hint-y{animation:hintY .7s ease-in-out infinite}
-@keyframes hintX{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
-@keyframes hintY{0%,100%{transform:translateY(0)}25%{transform:translateY(-4px)}75%{transform:translateY(4px)}}
+.cell.hint-x-right{animation:hintXRight .65s ease-in-out infinite}
+.cell.hint-x-left{animation:hintXLeft .65s ease-in-out infinite}
+.cell.hint-y-down{animation:hintYDown .65s ease-in-out infinite}
+.cell.hint-y-up{animation:hintYUp .65s ease-in-out infinite}
+@keyframes hintXRight{0%,100%{transform:translateX(0)}50%{transform:translateX(6px)}}
+@keyframes hintXLeft{0%,100%{transform:translateX(0)}50%{transform:translateX(-6px)}}
+@keyframes hintYDown{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+@keyframes hintYUp{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+@keyframes hintPop{0%{opacity:0;transform:translateY(6px) scale(.75)}60%{opacity:1;transform:translateY(-3px) scale(1.08)}100%{opacity:1;transform:translateY(0) scale(1)}}
