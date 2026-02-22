@@ -171,7 +171,7 @@ function clearHintVisual(){
   if(hintPulseTimer){ clearInterval(hintPulseTimer); hintPulseTimer=null; }
   if(hintedCellIndex!==null){
     const el = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
-    el?.classList.remove('shake','hint-x-right','hint-x-left','hint-y-up','hint-y-down');
+    el?.classList.remove('shake','hint-x-right','hint-x-left','hint-y-up','hint-y-down','hint-trail','hint-trail-right','hint-trail-left','hint-trail-up','hint-trail-down');
   }
   hintedCellIndex = null;
   hintedTargetIndex = null;
@@ -212,10 +212,15 @@ function onHintClick(){
     if(hintedCellIndex===null) return;
     const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
     if(!target) return;
-    target.classList.remove('hint-x-right','hint-x-left','hint-y-up','hint-y-down');
+    target.classList.remove('hint-x-right','hint-x-left','hint-y-up','hint-y-down','hint-trail','hint-trail-right','hint-trail-left','hint-trail-up','hint-trail-down');
     void target.offsetWidth;
-    if(hintAxis==='x') target.classList.add(hintDir==='right' ? 'hint-x-right' : 'hint-x-left');
-    else target.classList.add(hintDir==='down' ? 'hint-y-down' : 'hint-y-up');
+    if(hintAxis==='x') {
+      target.classList.add(hintDir==='right' ? 'hint-x-right' : 'hint-x-left');
+      target.classList.add('hint-trail', hintDir==='right' ? 'hint-trail-right' : 'hint-trail-left');
+    } else {
+      target.classList.add(hintDir==='down' ? 'hint-y-down' : 'hint-y-up');
+      target.classList.add('hint-trail', hintDir==='down' ? 'hint-trail-down' : 'hint-trail-up');
+    }
   };
   pulse();
   hintPulseTimer = setInterval(pulse, 1000);

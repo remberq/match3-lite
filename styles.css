@@ -125,3 +125,21 @@ li{margin:4px 0}
 @keyframes hintYUp{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 
 @keyframes hintPop{0%{opacity:0;transform:translateY(6px) scale(.75)}60%{opacity:1;transform:translateY(-3px) scale(1.08)}100%{opacity:1;transform:translateY(0) scale(1)}}
+
+.cell.hint-trail::before{
+  content:'';
+  position:absolute;
+  inset:10px;
+  border-radius:8px;
+  pointer-events:none;
+  opacity:0;
+  filter:blur(1px);
+}
+.cell.hint-trail-right::before{background:linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailRight .65s ease-in-out infinite}
+.cell.hint-trail-left::before{background:linear-gradient(270deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailLeft .65s ease-in-out infinite}
+.cell.hint-trail-down::before{background:linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailDown .65s ease-in-out infinite}
+.cell.hint-trail-up::before{background:linear-gradient(0deg, rgba(255,255,255,0), rgba(255,255,255,.65));animation:trailUp .65s ease-in-out infinite}
+@keyframes trailRight{0%,100%{opacity:0;transform:translateX(0)}50%{opacity:.85;transform:translateX(6px)}}
+@keyframes trailLeft{0%,100%{opacity:0;transform:translateX(0)}50%{opacity:.85;transform:translateX(-6px)}}
+@keyframes trailDown{0%,100%{opacity:0;transform:translateY(0)}50%{opacity:.85;transform:translateY(6px)}}
+@keyframes trailUp{0%,100%{opacity:0;transform:translateY(0)}50%{opacity:.85;transform:translateY(-6px)}}
