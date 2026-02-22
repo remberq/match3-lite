@@ -1,8 +1,9 @@
 const SIZE = 8, COLORS = 6, MOVES_MAX = 30;
+const MAX_HINTS = 3;
 let board = [], score = 0, moves = MOVES_MAX, selected = null, busy = false, currentPlayer = '';
 let touchStart = null, pointerStart = null, dropMap = new Map(), shakePower = 0;
 let currentSeriesPoints = 0, bestCombo = 0;
-let hintTimer = null, hintPulseTimer = null, hintMoveShown = false, hintedCellIndex = null;
+let hintTimer = null, hintedCellIndex = null, hintsLeft = MAX_HINTS;
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -18,6 +19,8 @@ const comboLabelEl = document.getElementById('comboLabel');
 const bestComboValueEl = document.getElementById('bestComboValue');
 const bestComboLabelEl = document.getElementById('bestComboLabel');
 const bestComboBoxEl = document.getElementById('bestComboBox');
+const hintBtnEl = document.getElementById('hintBtn');
+const hintsLeftEl = document.getElementById('hintsLeft');
 
 const audioCtx = (() => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }})();
 function sfx(freq=440,dur=0.07,type='sine',gain=0.03){ if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=type; o.frequency.value=freq; o.connect(g); g.connect(audioCtx.destination); const t=audioCtx.currentTime; g.gain.setValueAtTime(gain,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.start(t); o.stop(t+dur);} 
@@ -41,6 +44,7 @@ function setBestCombo(points){
   bestComboBoxEl.style.boxShadow = `inset 0 0 0 1px hsla(${hue} 95% 60% / .22)`;
 }
 function clearMatchesNoScore(set){ set.forEach(i=>board[i]=null); }
+function updateHintsUi(){ hintsLeftEl.textContent = `${hintsLeft}/${MAX_HINTS}`; }
 
 function triggerScreenShake(intensity=6){ shakePower=Math.max(shakePower,intensity); }
 function animateScreenShake(){ if(shakePower>0.2){ const x=(Math.random()-0.5)*shakePower,y=(Math.random()-0.5)*shakePower; boardEl.style.transform=`translate(${x}px,${y}px)`; shakePower*=0.82;} else {boardEl.style.transform=''; shakePower=0;} requestAnimationFrame(animateScreenShake);} requestAnimationFrame(animateScreenShake);
@@ -52,6 +56,7 @@ window.addEventListener('load', ()=> nameEl.focus());
 
 document.getElementById('newGameBtn').addEventListener('click', ()=>newGame(currentPlayer));
 document.getElementById('shuffleBtn').addEventListener('click', ()=>shuffleBoard());
+hintBtnEl.addEventListener('click', onHintClick);
 
 boardEl.addEventListener('touchstart', onTouchStart, {passive:true});
 boardEl.addEventListener('touchend', onTouchEnd, {passive:true});
@@ -61,9 +66,9 @@ function startGameFlow(){ const name=(nameEl.value||'').trim(); if(!name) return
 
 const randColor=()=>Math.floor(Math.random()*COLORS); const idx=(r,c)=>r*SIZE+c; const rc=i=>[Math.floor(i/SIZE), i%SIZE]; const adjacent=(a,b)=>{const [ar,ac]=rc(a),[br,bc]=rc(b); return Math.abs(ar-br)+Math.abs(ac-bc)===1;};
 
-function newGame(name){ if(name) currentPlayer=name; score=0; moves=MOVES_MAX; selected=null; currentSeriesPoints=0; bestCombo=0; setBestCombo(0); board=Array.from({length:SIZE*SIZE},randColor); while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); } ensurePlayableBoard(); dropMap.clear(); render(); resetHintCycle(); }
+function newGame(name){ if(name) currentPlayer=name; score=0; moves=MOVES_MAX; selected=null; currentSeriesPoints=0; bestCombo=0; hintsLeft=MAX_HINTS; updateHintsUi(); setBestCombo(0); board=Array.from({length:SIZE*SIZE},randColor); while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); } ensurePlayableBoard(); dropMap.clear(); render(); resetHintCycle(); }
 
-function shuffleBoard(){ if(busy) return; score=0; selected=null; currentSeriesPoints=0; bestCombo=0; setBestCombo(0); let arr=[...board];
+function shuffleBoard(){ if(busy) return; score=0; selected=null; currentSeriesPoints=0; bestCombo=0; hintsLeft=MAX_HINTS; updateHintsUi(); setBestCombo(0); let arr=[...board];
  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
  board=arr;
  while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); }
@@ -123,65 +128,30 @@ const escapeHtml=s=>s.replace(/[&<>'"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 
 // ---------- Playability + Hint system ----------
 function findMatchesOn(arr){
-  const set=new Set();
-  const at=(r,c)=>arr[idx(r,c)];
-  for(let r=0;r<SIZE;r++){
-    let run=1;
-    for(let c=1;c<=SIZE;c++){
-      const prev=at(r,c-1), cur=(c<SIZE?at(r,c):-1);
-      if(cur!==null && cur===prev) run++; else { if(run>=3 && prev!==null) for(let k=0;k<run;k++) set.add(idx(r,c-1-k)); run=1; }
-    }
-  }
-  for(let c=0;c<SIZE;c++){
-    let run=1;
-    for(let r=1;r<=SIZE;r++){
-      const prev=at(r-1,c), cur=(r<SIZE?at(r,c):-1);
-      if(cur!==null && cur===prev) run++; else { if(run>=3 && prev!==null) for(let k=0;k<run;k++) set.add(idx(r-1-k,c)); run=1; }
-    }
-  }
+  const set=new Set(); const at=(r,c)=>arr[idx(r,c)];
+  for(let r=0;r<SIZE;r++){ let run=1; for(let c=1;c<=SIZE;c++){ const prev=at(r,c-1), cur=(c<SIZE?at(r,c):-1); if(cur!==null&&cur===prev) run++; else { if(run>=3&&prev!==null) for(let k=0;k<run;k++) set.add(idx(r,c-1-k)); run=1; } }}
+  for(let c=0;c<SIZE;c++){ let run=1; for(let r=1;r<=SIZE;r++){ const prev=at(r-1,c), cur=(r<SIZE?at(r,c):-1); if(cur!==null&&cur===prev) run++; else { if(run>=3&&prev!==null) for(let k=0;k<run;k++) set.add(idx(r-1-k,c)); run=1; } }}
   return set;
 }
-
 function gravityFillOn(arr){
   for(let c=0;c<SIZE;c++){
     let write=SIZE-1;
-    for(let r=SIZE-1;r>=0;r--){
-      const from=idx(r,c), v=arr[from];
-      if(v!==null){ arr[idx(write,c)] = v; if(write!==r) arr[from]=null; write--; }
-    }
+    for(let r=SIZE-1;r>=0;r--){ const from=idx(r,c), v=arr[from]; if(v!==null){ arr[idx(write,c)] = v; if(write!==r) arr[from]=null; write--; } }
     for(let r=write;r>=0;r--) arr[idx(r,c)] = Math.floor(Math.random()*COLORS);
   }
 }
-
 function evaluateMove(a,b){
-  const arr=[...board];
-  [arr[a],arr[b]]=[arr[b],arr[a]];
-  let total=0, chain=0;
-  let m=findMatchesOn(arr);
+  const arr=[...board]; [arr[a],arr[b]]=[arr[b],arr[a]];
+  let total=0, chain=0, m=findMatchesOn(arr);
   if(!m.size) return -1;
-  while(m.size && chain<10){
-    chain++;
-    const size=m.size;
-    const bonus=size>=4?Math.floor(size/2):0;
-    total += size*10 + bonus + (chain>1? chain*6 : 0);
-    m.forEach(i=>arr[i]=null);
-    gravityFillOn(arr);
-    m=findMatchesOn(arr);
-  }
+  while(m.size && chain<10){ chain++; const size=m.size, bonus=size>=4?Math.floor(size/2):0; total += size*10 + bonus + (chain>1?chain*6:0); m.forEach(i=>arr[i]=null); gravityFillOn(arr); m=findMatchesOn(arr); }
   return total;
 }
-
 function findBestMove(){
   let best=null, bestScore=-1;
   for(let i=0;i<board.length;i++){
-    const [r,c]=rc(i);
-    const candidates=[];
-    if(c+1<SIZE) candidates.push(idx(r,c+1));
-    if(r+1<SIZE) candidates.push(idx(r+1,c));
-    for(const j of candidates){
-      const sc=evaluateMove(i,j);
-      if(sc>bestScore){ bestScore=sc; best=[i,j]; }
-    }
+    const [r,c]=rc(i); const candidates=[]; if(c+1<SIZE) candidates.push(idx(r,c+1)); if(r+1<SIZE) candidates.push(idx(r+1,c));
+    for(const j of candidates){ const sc=evaluateMove(i,j); if(sc>bestScore){ bestScore=sc; best=[i,j]; } }
   }
   return bestScore>=0 ? best : null;
 }
@@ -205,36 +175,40 @@ function clearHintVisual(){
   hintedCellIndex = null;
 }
 
-function pulseHint(){
-  if(busy || moves<=0 || hintMoveShown) return;
+function scheduleHintButton(){
+  if(hintTimer) clearTimeout(hintTimer);
+  hintBtnEl.classList.add('hidden');
+  hintTimer = setTimeout(()=>{
+    if(busy || moves<=0 || hintsLeft<=0) return;
+    const move = findBestMove();
+    if(!move) return;
+    hintBtnEl.classList.remove('hidden');
+  }, 5000);
+}
+
+function onHintClick(){
+  if(busy || moves<=0 || hintsLeft<=0) return;
   const move = findBestMove();
+  hintBtnEl.classList.add('hidden');
   if(!move) return;
+  hintsLeft = Math.max(0, hintsLeft - 1);
+  updateHintsUi();
+  clearHintVisual();
   hintedCellIndex = move[0];
-  const el = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
-  if(!el) return;
-  el.classList.remove('shake');
-  void el.offsetWidth;
-  el.classList.add('shake');
-  hintMoveShown = true;
-  if(hintPulseTimer) clearInterval(hintPulseTimer);
-  hintPulseTimer = setInterval(()=>{
-    if(busy || moves<=0 || hintedCellIndex===null) return;
-    const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
-    if(!target) return;
+  const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
+  if(target){
     target.classList.remove('shake');
     void target.offsetWidth;
     target.classList.add('shake');
-  }, 1000);
+  }
 }
 
 function resetHintCycle(){
-  if(hintTimer) clearTimeout(hintTimer);
-  if(hintPulseTimer) clearInterval(hintPulseTimer);
   clearHintVisual();
-  hintMoveShown = false;
-  hintTimer = setTimeout(pulseHint, 5000);
+  scheduleHintButton();
 }
 
 function userInteracted(){
+  hintBtnEl.classList.add('hidden');
   resetHintCycle();
 }

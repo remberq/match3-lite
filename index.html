@@ -25,6 +25,7 @@
           <div>Score: <strong id="score">0</strong></div>
           <div>Moves: <strong id="moves">30</strong></div>
           <div id="bestComboBox" class="best-combo">Best Combo: <strong id="bestComboValue">0</strong> <span id="bestComboLabel">—</span></div>
+          <div class="hints-counter">Hints: <strong id="hintsLeft">3/3</strong></div>
         </div>
         <div class="actions">
           <button id="shuffleBtn">Shuffle</button>
@@ -34,6 +35,7 @@
 
       <div class="game-row">
         <section id="board" class="board" aria-label="Match 3 board"></section>
+        <button id="hintBtn" class="hint-btn hidden" title="Получить подсказку" aria-label="Get hint">?</button>
         <div id="comboOverlay" class="combo-overlay hidden">
           <div id="comboPopup" class="combo-popup">100</div>
           <div id="comboLabel" class="combo-label">Great!</div>
