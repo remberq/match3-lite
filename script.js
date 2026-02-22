@@ -9,7 +9,8 @@ let busy = false;
 let currentPlayer = '';
 let touchStart = null;
 let pointerStart = null;
-let dropMap = new Map(); // index -> dropDistance for animation
+let dropMap = new Map();
+let shakePower = 0;
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -19,6 +20,49 @@ const playerLabelEl = document.getElementById('playerLabel');
 const leaderboardEl = document.getElementById('leaderboardList');
 const startScreenEl = document.getElementById('startScreen');
 const gameScreenEl = document.getElementById('gameScreen');
+
+const audioCtx = (() => {
+  try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+})();
+
+function sfx(freq=440,dur=0.07,type='sine',gain=0.03){
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = gain;
+  o.connect(g); g.connect(audioCtx.destination);
+  const t = audioCtx.currentTime;
+  g.gain.setValueAtTime(gain,t);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur);
+}
+
+function playMatchSfx(size){
+  sfx(420 + size*25, 0.08, 'triangle', 0.025);
+  setTimeout(()=>sfx(520 + size*28, 0.08, 'triangle', 0.02), 40);
+}
+function playSwapSfx(){ sfx(260,0.05,'square',0.015); }
+function playErrorSfx(){ sfx(150,0.12,'sawtooth',0.025); }
+
+function triggerScreenShake(intensity=6){
+  shakePower = Math.max(shakePower, intensity);
+}
+
+function animateScreenShake(){
+  if (shakePower > 0.2) {
+    const x = (Math.random() - 0.5) * shakePower;
+    const y = (Math.random() - 0.5) * shakePower;
+    boardEl.style.transform = `translate(${x}px, ${y}px)`;
+    shakePower *= 0.82;
+  } else {
+    boardEl.style.transform = '';
+    shakePower = 0;
+  }
+  requestAnimationFrame(animateScreenShake);
+}
+requestAnimationFrame(animateScreenShake);
 
 document.getElementById('newGameBtn').addEventListener('click', ()=>newGame(currentPlayer));
 document.getElementById('startBtn').addEventListener('click', startGameFlow);
@@ -35,6 +79,7 @@ function startGameFlow(){
   playerLabelEl.textContent = currentPlayer;
   startScreenEl.classList.add('hidden');
   gameScreenEl.classList.remove('hidden');
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   newGame(currentPlayer);
 }
 
@@ -71,7 +116,7 @@ function render() {
     if (dist && color !== null) {
       d.classList.add('drop');
       d.style.setProperty('--drop', String(dist));
-      d.style.animationDelay = `${Math.min(220, dist * 24)}ms`;
+      d.style.animationDelay = `${Math.min(220, dist * 22)}ms`;
     }
 
     d.addEventListener('click', ()=>onCell(i));
@@ -92,6 +137,7 @@ async function onCell(i){
 
 async function attemptSwap(a,b){
   busy = true;
+  playSwapSfx();
   await animateSwap(a,b);
   swap(a,b);
   render();
@@ -158,17 +204,20 @@ function applyGravityNoFill(){
   }
 }
 
-function fillInstant(){
-  for (let i=0;i<board.length;i++) if (board[i]===null) board[i]=randColor();
-}
+function fillInstant(){ for (let i=0;i<board.length;i++) if (board[i]===null) board[i]=randColor(); }
 
 async function resolveMatches(initial){
   let m = initial;
+  let comboChain = 0;
   while (m.size){
+    comboChain++;
+    playMatchSfx(m.size);
+    if (m.size >= 5 || comboChain >= 2) triggerScreenShake(Math.min(10, 4 + m.size * 0.45));
+
     await animateVanish(m);
     clearMatches(m);
     dropMap.clear();
-    render(); // empty first
+    render();
     await wait(120);
 
     applyGravityNoFill();
@@ -185,24 +234,17 @@ async function resolveMatches(initial){
 async function fillWithCascadeAnimation(){
   dropMap.clear();
   for (let c=0;c<SIZE;c++){
-    let emptyCount = 0;
-    for (let r=SIZE-1;r>=0;r--){
+    let empties = [];
+    for (let r=0;r<SIZE;r++) if (board[idx(r,c)]===null) empties.push(r);
+    for (let k=0;k<empties.length;k++){
+      const r = empties[k];
       const i = idx(r,c);
-      if (board[i]===null) emptyCount++;
-    }
-    // fill from top with future drop distances
-    for (let r=0;r<SIZE;r++){
-      const i = idx(r,c);
-      if (board[i]===null){
-        board[i] = randColor();
-        const dist = emptyCount - r;
-        dropMap.set(i, Math.max(1, dist + 1));
-      }
+      board[i] = randColor();
+      dropMap.set(i, empties.length - k + 1);
     }
   }
   render();
-  // wait for longest delayed drop
-  await wait(460);
+  await wait(500);
   dropMap.clear();
   render();
 }
@@ -215,14 +257,15 @@ async function animateSwap(a,b){
   const rb = cb.getBoundingClientRect();
   const dx = rb.left - ra.left;
   const dy = rb.top - ra.top;
-  ca.style.transform = `translate(${dx}px, ${dy}px) scale(1.02)`;
-  cb.style.transform = `translate(${-dx}px, ${-dy}px) scale(1.02)`;
+  ca.style.transform = `translate(${dx}px, ${dy}px) scale(1.04)`;
+  cb.style.transform = `translate(${-dx}px, ${-dy}px) scale(1.04)`;
   await wait(190);
   ca.style.transform = '';
   cb.style.transform = '';
 }
 
 async function animateInvalidSwap(a,b){
+  playErrorSfx();
   const cells = boardEl.querySelectorAll('.cell');
   const ca = cells[a], cb = cells[b];
   if (!ca || !cb) return;
