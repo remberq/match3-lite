@@ -9,22 +9,31 @@
 <body>
   <main class="app">
     <h1>Match3 Lite</h1>
-    <section class="panel">
+
+    <section id="startScreen" class="start-screen">
+      <h2>Start Game</h2>
       <label>Player name
         <input id="playerName" maxlength="20" placeholder="Enter name" />
       </label>
-      <button id="newGameBtn">New Game</button>
-      <div class="stats">
-        <div>Score: <strong id="score">0</strong></div>
-        <div>Moves: <strong id="moves">30</strong></div>
-      </div>
+      <button id="startBtn">Start</button>
     </section>
 
-    <section id="board" class="board" aria-label="Match 3 board"></section>
+    <section id="gameScreen" class="hidden">
+      <section class="panel">
+        <div class="stats">
+          <div>Player: <strong id="playerLabel">—</strong></div>
+          <div>Score: <strong id="score">0</strong></div>
+          <div>Moves: <strong id="moves">30</strong></div>
+        </div>
+        <button id="newGameBtn">New Game</button>
+      </section>
 
-    <section class="leaderboard">
-      <h2>Leaderboard</h2>
-      <ol id="leaderboardList"></ol>
+      <section id="board" class="board" aria-label="Match 3 board"></section>
+
+      <section class="leaderboard">
+        <h2>Leaderboard</h2>
+        <ol id="leaderboardList"></ol>
+      </section>
     </section>
   </main>
 
