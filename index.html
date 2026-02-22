@@ -25,15 +25,18 @@
           <div>Score: <strong id="score">0</strong></div>
           <div>Moves: <strong id="moves">30</strong></div>
         </div>
-        <button id="newGameBtn">New Game</button>
+        <div class="actions">
+          <button id="shuffleBtn">Shuffle</button>
+          <button id="newGameBtn">New Game</button>
+        </div>
       </section>
 
       <div class="game-row">
         <section id="board" class="board" aria-label="Match 3 board"></section>
-        <aside class="combo-side">
-          <div id="comboPopup" class="combo-popup hidden">100</div>
-          <div id="comboLabel" class="combo-label hidden">Great!</div>
-        </aside>
+        <div id="comboOverlay" class="combo-overlay hidden">
+          <div id="comboPopup" class="combo-popup">100</div>
+          <div id="comboLabel" class="combo-label">Great!</div>
+        </div>
       </div>
 
       <section class="leaderboard">
