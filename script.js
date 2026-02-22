@@ -46,18 +46,22 @@ function findMatches(){ const set=new Set();
  for(let c=0;c<SIZE;c++){ let run=1; for(let r=1;r<=SIZE;r++){ const prev=board[idx(r-1,c)], cur=(r<SIZE?board[idx(r,c)]:-1); if(cur!==null&&cur===prev) run++; else { if(run>=3&&prev!==null) for(let k=0;k<run;k++) set.add(idx(r-1-k,c)); run=1; }}}
  return set; }
 
-function clearMatches(set){ const bonus=set.size>=4?Math.floor(set.size/2):0; score += set.size*10+bonus; set.forEach(i=>board[i]=null); }
+function clearMatches(set){ const bonus=set.size>=4?Math.floor(set.size/2):0; const points=set.size*10+bonus; score += points; set.forEach(i=>board[i]=null); return points; }
 function applyGravityNoFill(){ for(let c=0;c<SIZE;c++){ let write=SIZE-1; for(let r=SIZE-1;r>=0;r--){ const from=idx(r,c), v=board[from]; if(v!==null){ const to=idx(write,c); board[to]=v; if(to!==from) board[from]=null; write--; } } for(let r=write;r>=0;r--) board[idx(r,c)]=null; } }
 function fillInstant(){ for(let i=0;i<board.length;i++) if(board[i]===null) board[i]=randColor(); }
 
-async function resolveMatches(initial){ let m=initial, comboChain=0;
- while(m.size){ comboChain++; const comboPoints = m.size*10 + (m.size>=4?Math.floor(m.size/2):0);
+async function resolveMatches(initial){ let m=initial, comboChain=0, seriesPoints=0;
+ while(m.size){ comboChain++;
  playMatchSfx(m.size); if(m.size>=5||comboChain>=2) triggerScreenShake(Math.min(10,4+m.size*.45));
- if(comboPoints>=100) showCombo(comboPoints);
  spawnParticles(m);
- await animateVanish(m); clearMatches(m); dropMap.clear(); render(); await wait(120);
+ await animateVanish(m);
+ const gained = clearMatches(m);
+ seriesPoints += gained;
+ dropMap.clear(); render(); await wait(120);
  applyGravityNoFill(); dropMap.clear(); render(); await wait(80);
  await fillWithCascadeAnimation(); m=findMatches(); }
+ // show combo for whole chain from one player move (including auto-cascades)
+ if(seriesPoints>=100) showCombo(seriesPoints);
  if(moves<=0) finishGame(); }
 
 function showCombo(points){ const t=Math.max(0, Math.min(1, (points-100)/300)); // 100..400+
