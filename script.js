@@ -1,7 +1,7 @@
 const SIZE = 8, COLORS = 6, MOVES_MAX = 30;
 let board = [], score = 0, moves = MOVES_MAX, selected = null, busy = false, currentPlayer = '';
 let touchStart = null, pointerStart = null, dropMap = new Map(), shakePower = 0;
-let currentSeriesPoints = 0;
+let currentSeriesPoints = 0, bestCombo = 0;
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -14,12 +14,33 @@ const gameScreenEl = document.getElementById('gameScreen');
 const comboOverlayEl = document.getElementById('comboOverlay');
 const comboPopupEl = document.getElementById('comboPopup');
 const comboLabelEl = document.getElementById('comboLabel');
+const bestComboValueEl = document.getElementById('bestComboValue');
+const bestComboLabelEl = document.getElementById('bestComboLabel');
+const bestComboBoxEl = document.getElementById('bestComboBox');
 
 const audioCtx = (() => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }})();
 function sfx(freq=440,dur=0.07,type='sine',gain=0.03){ if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=type; o.frequency.value=freq; o.connect(g); g.connect(audioCtx.destination); const t=audioCtx.currentTime; g.gain.setValueAtTime(gain,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.start(t); o.stop(t+dur);} 
 const playMatchSfx=size=>{ sfx(420 + size*25,0.08,'triangle',0.025); setTimeout(()=>sfx(520 + size*28,0.08,'triangle',0.02),40); };
 const playSwapSfx=()=>sfx(260,0.05,'square',0.015);
 const playErrorSfx=()=>sfx(150,0.12,'sawtooth',0.025);
+
+function comboMeta(points){
+  const t=Math.max(0,Math.min(1,(points-100)/300));
+  const hue=50-Math.round(50*t);
+  const label = points >= 300 ? 'Monster Combo!' : points >= 220 ? 'Awesome!' : points >= 150 ? 'Great!' : points >= 100 ? 'Nice!' : '—';
+  return {hue,label};
+}
+function setBestCombo(points){
+  bestCombo=Math.max(bestCombo,points);
+  bestComboValueEl.textContent=String(bestCombo);
+  const {hue,label}=comboMeta(bestCombo);
+  bestComboLabelEl.textContent=label;
+  bestComboValueEl.style.color=`hsl(${hue} 95% 60%)`;
+  bestComboLabelEl.style.color=`hsl(${hue} 95% 72%)`;
+  bestComboBoxEl.style.boxShadow = `inset 0 0 0 1px hsla(${hue} 95% 60% / .22)`;
+}
+function clearMatchesNoScore(set){ set.forEach(i=>board[i]=null); }
+
 
 function triggerScreenShake(intensity=6){ shakePower=Math.max(shakePower,intensity); }
 function animateScreenShake(){ if(shakePower>0.2){ const x=(Math.random()-0.5)*shakePower,y=(Math.random()-0.5)*shakePower; boardEl.style.transform=`translate(${x}px,${y}px)`; shakePower*=0.82;} else {boardEl.style.transform=''; shakePower=0;} requestAnimationFrame(animateScreenShake);} requestAnimationFrame(animateScreenShake);
@@ -40,12 +61,12 @@ function startGameFlow(){ const name=(nameEl.value||'').trim(); if(!name) return
 
 const randColor=()=>Math.floor(Math.random()*COLORS); const idx=(r,c)=>r*SIZE+c; const rc=i=>[Math.floor(i/SIZE), i%SIZE]; const adjacent=(a,b)=>{const [ar,ac]=rc(a),[br,bc]=rc(b); return Math.abs(ar-br)+Math.abs(ac-bc)===1;};
 
-function newGame(name){ if(name) currentPlayer=name; score=0; moves=MOVES_MAX; selected=null; currentSeriesPoints=0; board=Array.from({length:SIZE*SIZE},randColor); while(findMatches().size){ clearMatches(findMatches()); applyGravityNoFill(); fillInstant(); } dropMap.clear(); render(); }
+function newGame(name){ if(name) currentPlayer=name; score=0; moves=MOVES_MAX; selected=null; currentSeriesPoints=0; bestCombo=0; setBestCombo(0); board=Array.from({length:SIZE*SIZE},randColor); while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); } dropMap.clear(); render(); }
 
-function shuffleBoard(){ if(busy) return; score=0; selected=null; currentSeriesPoints=0; let arr=[...board];
+function shuffleBoard(){ if(busy) return; score=0; selected=null; currentSeriesPoints=0; bestCombo=0; setBestCombo(0); let arr=[...board];
  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
  board=arr;
- while(findMatches().size){ clearMatches(findMatches()); applyGravityNoFill(); fillInstant(); }
+ while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); }
  render();
 }
 
@@ -67,12 +88,11 @@ function fillInstant(){ for(let i=0;i<board.length;i++) if(board[i]===null) boar
 async function resolveMatches(initial){ let m=initial, comboChain=0;
  while(m.size){ comboChain++; playMatchSfx(m.size); if(m.size>=5||comboChain>=2) triggerScreenShake(Math.min(10,4+m.size*.45)); spawnParticles(m); await animateVanish(m);
  const gained=clearMatches(m); currentSeriesPoints += gained;
- if(currentSeriesPoints>=100) showCombo(currentSeriesPoints);
+ if(currentSeriesPoints>=100){ setBestCombo(currentSeriesPoints); showCombo(currentSeriesPoints); }
  dropMap.clear(); render(); await wait(120); applyGravityNoFill(); dropMap.clear(); render(); await wait(80); await fillWithCascadeAnimation(); m=findMatches(); }
  if(moves<=0) finishGame(); }
 
-function showCombo(points){ const t=Math.max(0,Math.min(1,(points-100)/300)); const hue=50-Math.round(50*t);
- const label = points >= 300 ? 'Monster Combo!' : points >= 220 ? 'Awesome!' : points >= 150 ? 'Great!' : 'Nice!';
+function showCombo(points){ const {hue,label}=comboMeta(points);
  comboOverlayEl.classList.remove('hidden');
  comboPopupEl.textContent=String(points); comboPopupEl.style.color=`hsl(${hue} 95% 60%)`; comboPopupEl.style.textShadow=`0 0 12px hsla(${hue} 95% 60% / .55), 0 6px 20px rgba(0,0,0,.35)`;
  comboLabelEl.textContent=label; comboLabelEl.style.color=`hsl(${hue} 95% 70%)`;
