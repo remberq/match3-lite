@@ -11,6 +11,7 @@ const leaderboardEl = document.getElementById('leaderboardList');
 const startScreenEl = document.getElementById('startScreen');
 const gameScreenEl = document.getElementById('gameScreen');
 const comboPopupEl = document.getElementById('comboPopup');
+const comboLabelEl = document.getElementById('comboLabel');
 
 const audioCtx = (() => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }})();
 function sfx(freq=440,dur=0.07,type='sine',gain=0.03){ if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=type; o.frequency.value=freq; g.gain.value=gain; o.connect(g); g.connect(audioCtx.destination); const t=audioCtx.currentTime; g.gain.setValueAtTime(gain,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.start(t); o.stop(t+dur);} 
@@ -61,13 +62,18 @@ async function resolveMatches(initial){ let m=initial, comboChain=0;
 
 function showCombo(points){ const t=Math.max(0, Math.min(1, (points-100)/300)); // 100..400+
  const hue = 50 - Math.round(50*t); // yellow(50) -> red(0)
+ const label = points >= 300 ? 'Monster Combo!' : points >= 220 ? 'Awesome!' : points >= 150 ? 'Great!' : 'Nice!';
  comboPopupEl.textContent = String(points);
  comboPopupEl.style.color = `hsl(${hue} 95% 60%)`;
  comboPopupEl.style.textShadow = `0 0 12px hsla(${hue} 95% 60% / .55), 0 6px 20px rgba(0,0,0,.35)`;
  comboPopupEl.classList.remove('hidden','show');
+ comboLabelEl.textContent = label;
+ comboLabelEl.style.color = `hsl(${hue} 95% 70%)`;
+ comboLabelEl.classList.remove('hidden','show');
  void comboPopupEl.offsetWidth;
  comboPopupEl.classList.add('show');
- setTimeout(()=>comboPopupEl.classList.remove('show'), 920);
+ comboLabelEl.classList.add('show');
+ setTimeout(()=>{ comboPopupEl.classList.remove('show'); comboLabelEl.classList.remove('show'); }, 920);
 }
 
 function spawnParticles(matchSet){ const rect = boardEl.getBoundingClientRect(); const cells=boardEl.querySelectorAll('.cell');

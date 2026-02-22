@@ -38,3 +38,7 @@ li { margin: 4px 0; }
 @keyframes drop {0%{opacity:.05;transform:translateY(calc(var(--drop,1) * -58px)) scale(.96)}75%{opacity:1;transform:translateY(3px) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes pfx {0%{opacity:.95;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(.2)}}
 @keyframes comboPop {0%{opacity:0;transform:translateY(14px) scale(.7)}15%{opacity:1;transform:translateY(0) scale(1.15)}55%{opacity:1;transform:translateY(-2px) scale(1)}100%{opacity:0;transform:translateY(-10px) scale(.9)}}
+
+.combo-label{margin-top:8px;font-weight:800;font-size:24px;opacity:0;letter-spacing:.6px;text-transform:uppercase;text-shadow:0 0 10px rgba(255,255,255,.25);}
+.combo-label.show{animation:comboLabelPop .95s cubic-bezier(.2,.8,.2,1)}
+@keyframes comboLabelPop{0%{opacity:0;transform:translateY(8px) scale(.8)}20%{opacity:1;transform:translateY(0) scale(1.05)}65%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-8px) scale(.95)}}
