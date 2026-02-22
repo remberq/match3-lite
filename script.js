@@ -9,6 +9,7 @@ let busy = false;
 let currentPlayer = '';
 let touchStart = null;
 let pointerStart = null;
+let dropMap = new Map(); // index -> dropDistance for animation
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -51,6 +52,7 @@ function newGame(name) {
     applyGravityNoFill();
     fillInstant();
   }
+  dropMap.clear();
   render();
 }
 
@@ -64,6 +66,14 @@ function render() {
     d.dataset.index = String(i);
     if (color===null) d.classList.add('empty'); else d.classList.add(`c${color}`);
     if (selected===i) d.classList.add('selected');
+
+    const dist = dropMap.get(i);
+    if (dist && color !== null) {
+      d.classList.add('drop');
+      d.style.setProperty('--drop', String(dist));
+      d.style.animationDelay = `${Math.min(220, dist * 24)}ms`;
+    }
+
     d.addEventListener('click', ()=>onCell(i));
     boardEl.appendChild(d);
   });
@@ -135,8 +145,14 @@ function applyGravityNoFill(){
   for (let c=0;c<SIZE;c++){
     let write = SIZE-1;
     for (let r=SIZE-1;r>=0;r--){
-      const v = board[idx(r,c)];
-      if (v!==null){ board[idx(write,c)] = v; if (write!==r) board[idx(r,c)] = null; write--; }
+      const from = idx(r,c);
+      const v = board[from];
+      if (v!==null){
+        const to = idx(write,c);
+        board[to] = v;
+        if (to !== from) board[from] = null;
+        write--;
+      }
     }
     for (let r=write;r>=0;r--) board[idx(r,c)] = null;
   }
@@ -151,41 +167,44 @@ async function resolveMatches(initial){
   while (m.size){
     await animateVanish(m);
     clearMatches(m);
+    dropMap.clear();
     render(); // empty first
-    await wait(140);
-
-    applyGravityNoFill();
-    render(); // dropped old gems
     await wait(120);
 
-    await fillWithCascadeAnimation(); // new gems fall one by one
+    applyGravityNoFill();
+    dropMap.clear();
+    render();
+    await wait(80);
+
+    await fillWithCascadeAnimation();
     m = findMatches();
   }
   if (moves<=0) finishGame();
 }
 
 async function fillWithCascadeAnimation(){
-  const toFillByCol = Array.from({length: SIZE}, ()=>[]);
+  dropMap.clear();
   for (let c=0;c<SIZE;c++){
+    let emptyCount = 0;
+    for (let r=SIZE-1;r>=0;r--){
+      const i = idx(r,c);
+      if (board[i]===null) emptyCount++;
+    }
+    // fill from top with future drop distances
     for (let r=0;r<SIZE;r++){
       const i = idx(r,c);
-      if (board[i]===null) toFillByCol[c].push(i);
+      if (board[i]===null){
+        board[i] = randColor();
+        const dist = emptyCount - r;
+        dropMap.set(i, Math.max(1, dist + 1));
+      }
     }
   }
-
-  let maxLen = 0;
-  for (let c=0;c<SIZE;c++) maxLen = Math.max(maxLen, toFillByCol[c].length);
-
-  for (let step=maxLen-1; step>=0; step--){
-    let changed = false;
-    for (let c=0;c<SIZE;c++){
-      const col = toFillByCol[c];
-      const pos = col[col.length-1-step];
-      if (pos!==undefined){ board[pos]=randColor(); changed = true; }
-    }
-    if (changed){ render(); await wait(55); }
-  }
-  await wait(60);
+  render();
+  // wait for longest delayed drop
+  await wait(460);
+  dropMap.clear();
+  render();
 }
 
 async function animateSwap(a,b){
@@ -196,9 +215,9 @@ async function animateSwap(a,b){
   const rb = cb.getBoundingClientRect();
   const dx = rb.left - ra.left;
   const dy = rb.top - ra.top;
-  ca.style.transform = `translate(${dx}px, ${dy}px)`;
-  cb.style.transform = `translate(${-dx}px, ${-dy}px)`;
-  await wait(170);
+  ca.style.transform = `translate(${dx}px, ${dy}px) scale(1.02)`;
+  cb.style.transform = `translate(${-dx}px, ${-dy}px) scale(1.02)`;
+  await wait(190);
   ca.style.transform = '';
   cb.style.transform = '';
 }
@@ -209,16 +228,16 @@ async function animateInvalidSwap(a,b){
   if (!ca || !cb) return;
   ca.classList.add('shake');
   cb.classList.add('shake');
-  await wait(220);
+  await wait(280);
   ca.classList.remove('shake');
   cb.classList.remove('shake');
-  await animateSwap(a,b); // animate return
+  await animateSwap(a,b);
 }
 
 async function animateVanish(matchSet){
   const cells = boardEl.querySelectorAll('.cell');
   matchSet.forEach(i => cells[i]?.classList.add('vanish'));
-  await wait(240);
+  await wait(300);
 }
 
 function finishGame(){
@@ -247,10 +266,10 @@ function onTouchStart(e){
 async function onTouchEnd(e){
   if (!touchStart || busy || moves<=0) return;
   const t = e.changedTouches[0];
-  const from = directionTarget(touchStart.index, t.clientX-touchStart.x, t.clientY-touchStart.y);
+  const move = directionTarget(touchStart.index, t.clientX-touchStart.x, t.clientY-touchStart.y);
   touchStart = null;
-  if (!from) return;
-  await attemptSwap(from[0], from[1]);
+  if (!move) return;
+  await attemptSwap(move[0], move[1]);
   render();
 }
 
@@ -281,4 +300,4 @@ function directionTarget(startIndex, dx, dy){
 }
 
 function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
-function escapeHtml(s){ return s.replace(/[&<>'"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':'&quot;'}[m])); }
+function escapeHtml(s){ return s.replace(/[&<>'"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':'&quot;',"'":"&#39;"}[m])); }
