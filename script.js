@@ -77,7 +77,33 @@ function shuffleBoard(){ if(busy) return; score=0; selected=null; currentSeriesP
  resetHintCycle();
 }
 
-function render(){ scoreEl.textContent=score; movesEl.textContent=moves; boardEl.innerHTML=''; board.forEach((color,i)=>{ const d=document.createElement('button'); d.className='cell'; d.dataset.index=String(i); if(color===null)d.classList.add('empty'); else d.classList.add(`c${color}`); if(selected===i)d.classList.add('selected'); const dist=dropMap.get(i); if(dist&&color!==null){ d.classList.add('drop'); d.style.setProperty('--drop',String(dist)); d.style.animationDelay=`${Math.min(220,dist*22)}ms`; } d.addEventListener('click',()=>onCell(i)); boardEl.appendChild(d); }); renderLeaderboard(); }
+function render(){
+  scoreEl.textContent=score;
+  movesEl.textContent=moves;
+
+  boardEl.innerHTML='';
+  board.forEach((color,i)=>{
+    const d=document.createElement('button');
+    d.className='cell';
+    d.dataset.index=String(i);
+    if(color===null) d.classList.add('empty'); else d.classList.add(`c${color}`);
+    if(selected===i) d.classList.add('selected');
+    const dist=dropMap.get(i);
+    if(dist&&color!==null){
+      d.classList.add('drop');
+      d.style.setProperty('--drop',String(dist));
+      d.style.animationDelay=`${Math.min(220,dist*22)}ms`;
+    }
+    d.addEventListener('click',()=>onCell(i));
+    boardEl.appendChild(d);
+  });
+
+  // keep overlay controls inside board after rerender
+  boardEl.appendChild(hintBtnEl);
+  boardEl.appendChild(comboOverlayEl);
+
+  renderLeaderboard();
+}
 
 async function onCell(i){ if(busy||moves<=0)return; if(selected===null){selected=i; return render();} if(selected===i){selected=null; return render();} if(!adjacent(selected,i)){selected=i; return render();} await attemptSwap(selected,i); selected=null; render(); }
 async function attemptSwap(a,b){ busy=true; currentSeriesPoints=0; playSwapSfx(); await animateSwap(a,b); swap(a,b); render(); let matches=findMatches(); if(!matches.size){ await animateInvalidSwap(a,b); swap(a,b); busy=false; render(); return; } moves--; clearHintVisual(); await resolveMatches(matches); busy=false; ensurePlayableBoard(); render(); resetHintCycle(); }
