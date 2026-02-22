@@ -2,6 +2,7 @@ const SIZE = 8, COLORS = 6, MOVES_MAX = 30;
 let board = [], score = 0, moves = MOVES_MAX, selected = null, busy = false, currentPlayer = '';
 let touchStart = null, pointerStart = null, dropMap = new Map(), shakePower = 0;
 let currentSeriesPoints = 0, bestCombo = 0;
+let hintTimer = null, hintPulseTimer = null, hintMoveShown = false, hintedCellIndex = null;
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -41,7 +42,6 @@ function setBestCombo(points){
 }
 function clearMatchesNoScore(set){ set.forEach(i=>board[i]=null); }
 
-
 function triggerScreenShake(intensity=6){ shakePower=Math.max(shakePower,intensity); }
 function animateScreenShake(){ if(shakePower>0.2){ const x=(Math.random()-0.5)*shakePower,y=(Math.random()-0.5)*shakePower; boardEl.style.transform=`translate(${x}px,${y}px)`; shakePower*=0.82;} else {boardEl.style.transform=''; shakePower=0;} requestAnimationFrame(animateScreenShake);} requestAnimationFrame(animateScreenShake);
 
@@ -61,19 +61,21 @@ function startGameFlow(){ const name=(nameEl.value||'').trim(); if(!name) return
 
 const randColor=()=>Math.floor(Math.random()*COLORS); const idx=(r,c)=>r*SIZE+c; const rc=i=>[Math.floor(i/SIZE), i%SIZE]; const adjacent=(a,b)=>{const [ar,ac]=rc(a),[br,bc]=rc(b); return Math.abs(ar-br)+Math.abs(ac-bc)===1;};
 
-function newGame(name){ if(name) currentPlayer=name; score=0; moves=MOVES_MAX; selected=null; currentSeriesPoints=0; bestCombo=0; setBestCombo(0); board=Array.from({length:SIZE*SIZE},randColor); while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); } dropMap.clear(); render(); }
+function newGame(name){ if(name) currentPlayer=name; score=0; moves=MOVES_MAX; selected=null; currentSeriesPoints=0; bestCombo=0; setBestCombo(0); board=Array.from({length:SIZE*SIZE},randColor); while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); } ensurePlayableBoard(); dropMap.clear(); render(); resetHintCycle(); }
 
 function shuffleBoard(){ if(busy) return; score=0; selected=null; currentSeriesPoints=0; bestCombo=0; setBestCombo(0); let arr=[...board];
  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
  board=arr;
  while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); }
+ ensurePlayableBoard();
  render();
+ resetHintCycle();
 }
 
 function render(){ scoreEl.textContent=score; movesEl.textContent=moves; boardEl.innerHTML=''; board.forEach((color,i)=>{ const d=document.createElement('button'); d.className='cell'; d.dataset.index=String(i); if(color===null)d.classList.add('empty'); else d.classList.add(`c${color}`); if(selected===i)d.classList.add('selected'); const dist=dropMap.get(i); if(dist&&color!==null){ d.classList.add('drop'); d.style.setProperty('--drop',String(dist)); d.style.animationDelay=`${Math.min(220,dist*22)}ms`; } d.addEventListener('click',()=>onCell(i)); boardEl.appendChild(d); }); renderLeaderboard(); }
 
-async function onCell(i){ if(busy||moves<=0)return; if(selected===null){selected=i; return render();} if(selected===i){selected=null; return render();} if(!adjacent(selected,i)){selected=i; return render();} await attemptSwap(selected,i); selected=null; render(); }
-async function attemptSwap(a,b){ busy=true; currentSeriesPoints=0; playSwapSfx(); await animateSwap(a,b); swap(a,b); render(); let matches=findMatches(); if(!matches.size){ await animateInvalidSwap(a,b); swap(a,b); busy=false; render(); return; } moves--; await resolveMatches(matches); busy=false; }
+async function onCell(i){ if(busy||moves<=0)return; userInteracted(); if(selected===null){selected=i; return render();} if(selected===i){selected=null; return render();} if(!adjacent(selected,i)){selected=i; return render();} await attemptSwap(selected,i); selected=null; render(); }
+async function attemptSwap(a,b){ busy=true; currentSeriesPoints=0; playSwapSfx(); await animateSwap(a,b); swap(a,b); render(); let matches=findMatches(); if(!matches.size){ await animateInvalidSwap(a,b); swap(a,b); busy=false; render(); resetHintCycle(); return; } moves--; await resolveMatches(matches); busy=false; ensurePlayableBoard(); render(); resetHintCycle(); }
 const swap=(a,b)=>{[board[a],board[b]]=[board[b],board[a]]};
 
 function findMatches(){ const set=new Set();
@@ -110,11 +112,81 @@ async function animateVanish(matchSet){ const cells=boardEl.querySelectorAll('.c
 function finishGame(){ const name=(currentPlayer||'Anonymous').trim().slice(0,20); const key='match3_leaderboard_v1'; const list=JSON.parse(localStorage.getItem(key)||'[]'); list.push({name,score,date:new Date().toISOString()}); list.sort((a,b)=>b.score-a.score); localStorage.setItem(key,JSON.stringify(list.slice(0,10))); alert(`Game over, ${name}! Score: ${score}`); }
 function renderLeaderboard(){ const list=JSON.parse(localStorage.getItem('match3_leaderboard_v1')||'[]'); leaderboardEl.innerHTML=list.map(x=>`<li><strong>${escapeHtml(x.name)}</strong> — ${x.score}</li>`).join('')||'<li>No scores yet</li>'; }
 
-function onTouchStart(e){ if(busy||moves<=0)return; const t=e.changedTouches[0]; const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.cell'); if(!el)return; touchStart={x:t.clientX,y:t.clientY,index:Number(el.dataset.index)}; }
+function onTouchStart(e){ if(busy||moves<=0)return; userInteracted(); const t=e.changedTouches[0]; const el=document.elementFromPoint(t.clientX,t.clientY)?.closest('.cell'); if(!el)return; touchStart={x:t.clientX,y:t.clientY,index:Number(el.dataset.index)}; }
 async function onTouchEnd(e){ if(!touchStart||busy||moves<=0)return; const t=e.changedTouches[0]; const move=directionTarget(touchStart.index,t.clientX-touchStart.x,t.clientY-touchStart.y); touchStart=null; if(!move)return; await attemptSwap(move[0],move[1]); render(); }
-function onMouseDown(e){ if(busy||moves<=0)return; const el=e.target.closest('.cell'); if(!el)return; pointerStart={x:e.clientX,y:e.clientY,index:Number(el.dataset.index)}; }
+function onMouseDown(e){ if(busy||moves<=0)return; userInteracted(); const el=e.target.closest('.cell'); if(!el)return; pointerStart={x:e.clientX,y:e.clientY,index:Number(el.dataset.index)}; }
 async function onMouseUp(e){ if(!pointerStart||busy||moves<=0)return; const move=directionTarget(pointerStart.index,e.clientX-pointerStart.x,e.clientY-pointerStart.y); pointerStart=null; if(!move)return; await attemptSwap(move[0],move[1]); render(); }
 
 function directionTarget(startIndex,dx,dy){ if(Math.abs(dx)<10&&Math.abs(dy)<10)return null; const [r,c]=rc(startIndex); let tr=r,tc=c; if(Math.abs(dx)>Math.abs(dy)) tc += dx>0?1:-1; else tr += dy>0?1:-1; if(tr<0||tc<0||tr>=SIZE||tc>=SIZE)return null; return [startIndex,idx(tr,tc)]; }
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const escapeHtml=s=>s.replace(/[&<>'"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':'&quot;',"'":"&#39;"}[m]));
+
+// ---------- Playability + Hint system ----------
+function findAnyValidMove(){
+  for(let i=0;i<board.length;i++){
+    const [r,c]=rc(i);
+    const candidates=[];
+    if(c+1<SIZE) candidates.push(idx(r,c+1));
+    if(r+1<SIZE) candidates.push(idx(r+1,c));
+    for(const j of candidates){
+      swap(i,j);
+      const has = findMatches().size>0;
+      swap(i,j);
+      if(has) return [i,j];
+    }
+  }
+  return null;
+}
+
+function ensurePlayableBoard(){
+  let guard=0;
+  while(!findAnyValidMove() && guard<40){
+    const arr=[...board];
+    for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+    board=arr;
+    while(findMatches().size){ const m=findMatches(); clearMatchesNoScore(m); applyGravityNoFill(); fillInstant(); }
+    guard++;
+  }
+}
+
+function clearHintVisual(){
+  if(hintedCellIndex!==null){
+    const el = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
+    el?.classList.remove('shake');
+  }
+  hintedCellIndex = null;
+}
+
+function pulseHint(){
+  if(busy || moves<=0 || hintMoveShown) return;
+  const move = findAnyValidMove();
+  if(!move) return;
+  hintedCellIndex = move[0];
+  const el = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
+  if(!el) return;
+  el.classList.remove('shake');
+  void el.offsetWidth;
+  el.classList.add('shake');
+  hintMoveShown = true;
+  if(hintPulseTimer) clearInterval(hintPulseTimer);
+  hintPulseTimer = setInterval(()=>{
+    if(busy || moves<=0 || hintedCellIndex===null) return;
+    const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
+    if(!target) return;
+    target.classList.remove('shake');
+    void target.offsetWidth;
+    target.classList.add('shake');
+  }, 1000);
+}
+
+function resetHintCycle(){
+  if(hintTimer) clearTimeout(hintTimer);
+  if(hintPulseTimer) clearInterval(hintPulseTimer);
+  clearHintVisual();
+  hintMoveShown = false;
+  hintTimer = setTimeout(pulseHint, 1000);
+}
+
+function userInteracted(){
+  resetHintCycle();
+}
