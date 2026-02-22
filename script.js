@@ -122,25 +122,73 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const escapeHtml=s=>s.replace(/[&<>'"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':'&quot;',"'":"&#39;"}[m]));
 
 // ---------- Playability + Hint system ----------
-function findAnyValidMove(){
+function findMatchesOn(arr){
+  const set=new Set();
+  const at=(r,c)=>arr[idx(r,c)];
+  for(let r=0;r<SIZE;r++){
+    let run=1;
+    for(let c=1;c<=SIZE;c++){
+      const prev=at(r,c-1), cur=(c<SIZE?at(r,c):-1);
+      if(cur!==null && cur===prev) run++; else { if(run>=3 && prev!==null) for(let k=0;k<run;k++) set.add(idx(r,c-1-k)); run=1; }
+    }
+  }
+  for(let c=0;c<SIZE;c++){
+    let run=1;
+    for(let r=1;r<=SIZE;r++){
+      const prev=at(r-1,c), cur=(r<SIZE?at(r,c):-1);
+      if(cur!==null && cur===prev) run++; else { if(run>=3 && prev!==null) for(let k=0;k<run;k++) set.add(idx(r-1-k,c)); run=1; }
+    }
+  }
+  return set;
+}
+
+function gravityFillOn(arr){
+  for(let c=0;c<SIZE;c++){
+    let write=SIZE-1;
+    for(let r=SIZE-1;r>=0;r--){
+      const from=idx(r,c), v=arr[from];
+      if(v!==null){ arr[idx(write,c)] = v; if(write!==r) arr[from]=null; write--; }
+    }
+    for(let r=write;r>=0;r--) arr[idx(r,c)] = Math.floor(Math.random()*COLORS);
+  }
+}
+
+function evaluateMove(a,b){
+  const arr=[...board];
+  [arr[a],arr[b]]=[arr[b],arr[a]];
+  let total=0, chain=0;
+  let m=findMatchesOn(arr);
+  if(!m.size) return -1;
+  while(m.size && chain<10){
+    chain++;
+    const size=m.size;
+    const bonus=size>=4?Math.floor(size/2):0;
+    total += size*10 + bonus + (chain>1? chain*6 : 0);
+    m.forEach(i=>arr[i]=null);
+    gravityFillOn(arr);
+    m=findMatchesOn(arr);
+  }
+  return total;
+}
+
+function findBestMove(){
+  let best=null, bestScore=-1;
   for(let i=0;i<board.length;i++){
     const [r,c]=rc(i);
     const candidates=[];
     if(c+1<SIZE) candidates.push(idx(r,c+1));
     if(r+1<SIZE) candidates.push(idx(r+1,c));
     for(const j of candidates){
-      swap(i,j);
-      const has = findMatches().size>0;
-      swap(i,j);
-      if(has) return [i,j];
+      const sc=evaluateMove(i,j);
+      if(sc>bestScore){ bestScore=sc; best=[i,j]; }
     }
   }
-  return null;
+  return bestScore>=0 ? best : null;
 }
 
 function ensurePlayableBoard(){
   let guard=0;
-  while(!findAnyValidMove() && guard<40){
+  while(!findBestMove() && guard<40){
     const arr=[...board];
     for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
     board=arr;
@@ -159,7 +207,7 @@ function clearHintVisual(){
 
 function pulseHint(){
   if(busy || moves<=0 || hintMoveShown) return;
-  const move = findAnyValidMove();
+  const move = findBestMove();
   if(!move) return;
   hintedCellIndex = move[0];
   const el = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
@@ -184,7 +232,7 @@ function resetHintCycle(){
   if(hintPulseTimer) clearInterval(hintPulseTimer);
   clearHintVisual();
   hintMoveShown = false;
-  hintTimer = setTimeout(pulseHint, 1000);
+  hintTimer = setTimeout(pulseHint, 5000);
 }
 
 function userInteracted(){
