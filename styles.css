@@ -76,7 +76,7 @@ li{margin:4px 0}
 .hints-counter{font-weight:700;padding:4px 8px;border-radius:10px;background:rgba(2,6,23,.45);border:1px solid #334155}
 
 .hint-btn{
-  position:absolute; right:-62px; top:20px;
+  position:absolute; right:-66px; top:20px;
   width:58px; height:58px; border-radius:16px;
   font-size:34px; font-weight:900; line-height:1;
   background:linear-gradient(180deg,#fde68a,#f59e0b);
@@ -113,3 +113,8 @@ li{margin:4px 0}
 @media (max-width: 920px){
   .hint-btn::after{display:none}
 }
+
+.cell.hint-x{animation:hintX .7s ease-in-out infinite}
+.cell.hint-y{animation:hintY .7s ease-in-out infinite}
+@keyframes hintX{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes hintY{0%,100%{transform:translateY(0)}25%{transform:translateY(-4px)}75%{transform:translateY(4px)}}

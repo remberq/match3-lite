@@ -3,7 +3,7 @@ const MAX_HINTS = 3;
 let board = [], score = 0, moves = MOVES_MAX, selected = null, busy = false, currentPlayer = '';
 let touchStart = null, pointerStart = null, dropMap = new Map(), shakePower = 0;
 let currentSeriesPoints = 0, bestCombo = 0;
-let hintTimer = null, hintedCellIndex = null, hintsLeft = MAX_HINTS, hintPulseTimer = null;
+let hintTimer = null, hintedCellIndex = null, hintedTargetIndex = null, hintAxis = null, hintsLeft = MAX_HINTS, hintPulseTimer = null;
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -171,9 +171,11 @@ function clearHintVisual(){
   if(hintPulseTimer){ clearInterval(hintPulseTimer); hintPulseTimer=null; }
   if(hintedCellIndex!==null){
     const el = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
-    el?.classList.remove('shake');
+    el?.classList.remove('shake','hint-x','hint-y');
   }
   hintedCellIndex = null;
+  hintedTargetIndex = null;
+  hintAxis = null;
 }
 
 function scheduleHintButton(){
@@ -196,14 +198,18 @@ function onHintClick(){
   updateHintsUi();
   clearHintVisual();
   hintedCellIndex = move[0];
+  hintedTargetIndex = move[1];
+  const [sr,sc] = rc(hintedCellIndex);
+  const [tr,tc] = rc(hintedTargetIndex);
+  hintAxis = (sr===tr) ? 'x' : 'y';
 
   const pulse = () => {
     if(hintedCellIndex===null) return;
     const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
     if(!target) return;
-    target.classList.remove('shake');
+    target.classList.remove('hint-x','hint-y');
     void target.offsetWidth;
-    target.classList.add('shake');
+    target.classList.add(hintAxis==='x' ? 'hint-x' : 'hint-y');
   };
   pulse();
   hintPulseTimer = setInterval(pulse, 1000);
