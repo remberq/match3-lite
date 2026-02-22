@@ -1,0 +1,16 @@
+:root {
+  --size: 48px;
+}
+body { font-family: Inter, Arial, sans-serif; background: #111827; color: #f9fafb; margin: 0; }
+.app { max-width: 760px; margin: 20px auto; padding: 12px; }
+.panel { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px; }
+input, button { padding:8px 10px; border-radius:8px; border:1px solid #374151; background:#1f2937; color:#f9fafb; }
+button { cursor:pointer; }
+.stats { display:flex; gap:14px; }
+.board { display:grid; grid-template-columns: repeat(8, var(--size)); gap:6px; user-select:none; }
+.cell { width:var(--size); height:var(--size); border-radius:10px; border:2px solid transparent; transition: transform .12s; }
+.cell.selected { border-color:#fff; transform: scale(1.06); }
+.c0 { background:#ef4444; } .c1{background:#3b82f6;} .c2{background:#22c55e;}
+.c3 { background:#eab308; } .c4{background:#a855f7;} .c5{background:#f97316;}
+.leaderboard { margin-top: 18px; }
+li { margin: 4px 0; }

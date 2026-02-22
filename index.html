@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Match3 Lite</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>Match3 Lite</h1>
+    <section class="panel">
+      <label>Player name
+        <input id="playerName" maxlength="20" placeholder="Enter name" />
+      </label>
+      <button id="newGameBtn">New Game</button>
+      <div class="stats">
+        <div>Score: <strong id="score">0</strong></div>
+        <div>Moves: <strong id="moves">30</strong></div>
+      </div>
+    </section>
+
+    <section id="board" class="board" aria-label="Match 3 board"></section>
+
+    <section class="leaderboard">
+      <h2>Leaderboard</h2>
+      <ol id="leaderboardList"></ol>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
