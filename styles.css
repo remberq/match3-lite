@@ -76,7 +76,7 @@ li{margin:4px 0}
 .hints-counter{font-weight:700;padding:4px 8px;border-radius:10px;background:rgba(2,6,23,.45);border:1px solid #334155}
 
 .hint-btn{
-  position:absolute; right:-74px; top:20px;
+  position:absolute; right:-62px; top:20px;
   width:58px; height:58px; border-radius:16px;
   font-size:34px; font-weight:900; line-height:1;
   background:linear-gradient(180deg,#fde68a,#f59e0b);
@@ -88,3 +88,28 @@ li{margin:4px 0}
 .hint-btn:hover{transform:translateY(-2px) scale(1.03);filter:brightness(1.04)}
 .hint-btn:active{transform:translateY(0) scale(.98)}
 @media (max-width: 920px){ .hint-btn{ right:8px; top:8px; width:50px; height:50px; font-size:30px; } }
+
+.hint-btn::after{
+  content: attr(data-tooltip);
+  position:absolute;
+  right:calc(100% + 8px);
+  top:50%;
+  transform:translateY(-50%) scale(.96);
+  transform-origin:right center;
+  white-space:nowrap;
+  font-size:12px;
+  font-weight:700;
+  padding:6px 8px;
+  border-radius:8px;
+  background:#0b1220;
+  color:#f8fafc;
+  border:1px solid #334155;
+  box-shadow:0 8px 18px rgba(0,0,0,.35);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s ease, transform .15s ease;
+}
+.hint-btn:hover::after{opacity:1;transform:translateY(-50%) scale(1)}
+@media (max-width: 920px){
+  .hint-btn::after{display:none}
+}

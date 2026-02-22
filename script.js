@@ -3,7 +3,7 @@ const MAX_HINTS = 3;
 let board = [], score = 0, moves = MOVES_MAX, selected = null, busy = false, currentPlayer = '';
 let touchStart = null, pointerStart = null, dropMap = new Map(), shakePower = 0;
 let currentSeriesPoints = 0, bestCombo = 0;
-let hintTimer = null, hintedCellIndex = null, hintsLeft = MAX_HINTS;
+let hintTimer = null, hintedCellIndex = null, hintsLeft = MAX_HINTS, hintPulseTimer = null;
 
 const boardEl = document.getElementById('board');
 const scoreEl = document.getElementById('score');
@@ -80,7 +80,7 @@ function shuffleBoard(){ if(busy) return; score=0; selected=null; currentSeriesP
 function render(){ scoreEl.textContent=score; movesEl.textContent=moves; boardEl.innerHTML=''; board.forEach((color,i)=>{ const d=document.createElement('button'); d.className='cell'; d.dataset.index=String(i); if(color===null)d.classList.add('empty'); else d.classList.add(`c${color}`); if(selected===i)d.classList.add('selected'); const dist=dropMap.get(i); if(dist&&color!==null){ d.classList.add('drop'); d.style.setProperty('--drop',String(dist)); d.style.animationDelay=`${Math.min(220,dist*22)}ms`; } d.addEventListener('click',()=>onCell(i)); boardEl.appendChild(d); }); renderLeaderboard(); }
 
 async function onCell(i){ if(busy||moves<=0)return; userInteracted(); if(selected===null){selected=i; return render();} if(selected===i){selected=null; return render();} if(!adjacent(selected,i)){selected=i; return render();} await attemptSwap(selected,i); selected=null; render(); }
-async function attemptSwap(a,b){ busy=true; currentSeriesPoints=0; playSwapSfx(); await animateSwap(a,b); swap(a,b); render(); let matches=findMatches(); if(!matches.size){ await animateInvalidSwap(a,b); swap(a,b); busy=false; render(); resetHintCycle(); return; } moves--; await resolveMatches(matches); busy=false; ensurePlayableBoard(); render(); resetHintCycle(); }
+async function attemptSwap(a,b){ busy=true; currentSeriesPoints=0; playSwapSfx(); await animateSwap(a,b); swap(a,b); render(); let matches=findMatches(); if(!matches.size){ await animateInvalidSwap(a,b); swap(a,b); busy=false; render(); resetHintCycle(); return; } moves--; clearHintVisual(); await resolveMatches(matches); busy=false; ensurePlayableBoard(); render(); resetHintCycle(); }
 const swap=(a,b)=>{[board[a],board[b]]=[board[b],board[a]]};
 
 function findMatches(){ const set=new Set();
@@ -168,6 +168,7 @@ function ensurePlayableBoard(){
 }
 
 function clearHintVisual(){
+  if(hintPulseTimer){ clearInterval(hintPulseTimer); hintPulseTimer=null; }
   if(hintedCellIndex!==null){
     const el = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
     el?.classList.remove('shake');
@@ -195,12 +196,17 @@ function onHintClick(){
   updateHintsUi();
   clearHintVisual();
   hintedCellIndex = move[0];
-  const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
-  if(target){
+
+  const pulse = () => {
+    if(hintedCellIndex===null) return;
+    const target = boardEl.querySelector(`.cell[data-index="${hintedCellIndex}"]`);
+    if(!target) return;
     target.classList.remove('shake');
     void target.offsetWidth;
     target.classList.add('shake');
-  }
+  };
+  pulse();
+  hintPulseTimer = setInterval(pulse, 1000);
 }
 
 function resetHintCycle(){
@@ -210,5 +216,8 @@ function resetHintCycle(){
 
 function userInteracted(){
   hintBtnEl.classList.add('hidden');
-  resetHintCycle();
+  // keep active hint pulse until player makes a valid match
+  if(hintedCellIndex===null){
+    resetHintCycle();
+  }
 }
